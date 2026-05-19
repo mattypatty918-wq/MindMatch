@@ -11,29 +11,21 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: '22'
       - run: npm ci
       - run: npm run build
-      - uses: nick-fields/retry@v3
-        with:
-          timeout_minutes: 15
-          max_attempts: 3
-          command: npx cap sync ios
-      - run: |
+      - run: npx cap add ios
+      - run: npx cap sync ios
+      - name: Build iOS
+        run: |
           cd ios && xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -destination 'generic/platform=iOS' -derivedDataPath build COMPILER_INDEX_STORE_NO=NO CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
-      - run: |
-          mkdir -p build/Payload && cp -r build/Build/Products/Release-iphoneos/App.app build/Payload/ && mkdir -p build/Payload/Payload && cp -r build/Build/Products/Release-iphoneos/App.app build/Payload/Payload/ && cd build && zip -r App.ipa Payload && ls -la App.ipa
+      - name: Create IPA
+        run: |
+          mkdir -p build/Payload
+          cp -r build/Build/Products/Release-iphoneos/App.app build/Payload/
+          cd build && zip -r App.ipa Payload
       - uses: actions/upload-artifact@v4
         with:
-          name: app
-          path: build/App.ipa
+          name: App-ipa
+          path: ios/build/App.ipa
           retention-days: 7
-      - name: Upload to App Store Connect
-        env:
-          APPSTORECONNECT_API_KEY_ID: ${{ secrets.APPSTORECONNECT_API_KEY_ID }}
-          APPSTORECONNECT_API_KEY_FILE: ${{ secrets.APPSTORECONNECT_API_KEY_FILE }}
-          APPSTORECONNECT_ISSUER_ID: ${{ secrets.APPSTORECONNECT_ISSUER_ID }}
-        run: |
-          mkdir -p ~/private_keys && echo "$APPSTORECONNECT_API_KEY_FILE" > ~/private_keys/AuthKey_$APPSTORECONNECT_API_KEY_ID.p8
-          xcrun altool --upload-app --type ios --file build/App.ipa --apiKey $APPSTORECONNECT_API_KEY_ID --apiIssuer $APPSTORECONNECT_ISSUER_ID --tolerance-policy OPT_OUT
