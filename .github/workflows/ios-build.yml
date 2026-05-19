@@ -2,49 +2,38 @@ name: Build iOS
 
 on:
   push:
-    branches: [master, main]
-  workflow_dispatch:
+    branches: [master]
 
 jobs:
-  build-ios:
+  build:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '20'
           cache: 'npm'
-      - name: Install dependencies
-        run: npm ci
-      - name: Build web app
-        run: npm run build
-      - name: Sync Capacitor
-        run: |
-          npx cap sync ios
-          ls ios/App/*.xcodeproj
-      - name: Build iOS
-        run: |
-          cd ios/App
-          WORKDIR=$(pwd)
-          if [ -d "App.xcworkspace" ]; then
-            xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -destination 'generic/platform=iOS' -derivedDataPath ./build CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
-          else
-            xcodebuild -project App.xcodeproj -scheme App -configuration Release -destination 'generic/platform=iOS' -derivedDataPath ./build CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
-          fi
-      - name: Create IPA
-        run: |
-          cd ios/App
-          WORKDIR=$(pwd)
-          APP_PATH="$WORKDIR/build/Build/Products/Release-iphoneos/App.app"
-          mkdir -p "$WORKDIR/build/Payload"
-          cp -r "$APP_PATH" "$WORKDIR/build/Payload/"
-          cd "$WORKDIR/build"
-          zip -r App.ipa Payload
-          ls -la "$WORKDIR/build/App.ipa"
+      - run: npm ci
+      - run: npm run build
+      - uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 15
+          max_attempts: 3
+          command: npx cap sync ios
+      - run: |
+          cd ios && xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -destination 'generic/platform=iOS' -derivedDataPath build COMPILER_INDEX_STORE_NO=NO CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+      - run: |
+          mkdir -p build/Payload && cp -r build/Build/Products/Release-iphoneos/App.app build/Payload/ && mkdir -p build/Payload/Payload && cp -r build/Build/Products/Release-iphoneos/App.app build/Payload/Payload/ && cd build && zip -r App.ipa Payload && ls -la App.ipa
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app
+          path: build/App.ipa
+          retention-days: 7
       - name: Upload to App Store Connect
-        run: |
-          cd ios/App/build
-          xcrun altool --upload-app -f App.ipa -t ios --apiKey "${{ secrets.APPSTORECONNECT_API_KEY_ID }}" --apiIssuer "${{ secrets.APPSTORECONNECT_API_KEY_ISSUER_ID }}" --uploadTimeout 600 2>&1 | tail -40
         env:
-          API_KEY_FILE: ${{ secrets.APPSTORECONNECT_API_KEY_FILE }}
+          APPSTORECONNECT_API_KEY_ID: ${{ secrets.APPSTORECONNECT_API_KEY_ID }}
+          APPSTORECONNECT_API_KEY_FILE: ${{ secrets.APPSTORECONNECT_API_KEY_FILE }}
+          APPSTORECONNECT_ISSUER_ID: ${{ secrets.APPSTORECONNECT_ISSUER_ID }}
+        run: |
+          mkdir -p ~/private_keys && echo "$APPSTORECONNECT_API_KEY_FILE" > ~/private_keys/AuthKey_$APPSTORECONNECT_API_KEY_ID.p8
+          xcrun altool --upload-app --type ios --file build/App.ipa --apiKey $APPSTORECONNECT_API_KEY_ID --apiIssuer $APPSTORECONNECT_ISSUER_ID --tolerance-policy OPT_OUT
