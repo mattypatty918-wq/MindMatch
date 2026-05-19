@@ -12,7 +12,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
+          check-latest: true
+      - run: node -v && npm -v
       - run: npm ci
       - run: npm run build
       - run: npx cap sync ios
@@ -23,7 +24,7 @@ jobs:
         run: |
           mkdir -p build/Payload
           cp -r build/Build/Products/Release-iphoneos/App.app build/Payload/
-          cd build && zip -r App.ipa Payload && ls -la App.ipa
+          cd build && zip -r App.ipa Payload
       - uses: actions/upload-artifact@v4
         with:
           name: App-ipa
