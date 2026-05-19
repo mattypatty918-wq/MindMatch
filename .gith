@@ -18,21 +18,16 @@ jobs:
       - run: npx cap sync ios
       - name: Build iOS
         run: |
-          ls ios/App/*.xcodeproj
-          cd ios && xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -destination 'generic/platform=iOS' -derivedDataPath build COMPILER_INDEX_STORE_NO=NO CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
-          mkdir -p build/Payload && cp -r build/Build/Products/Release-iphoneos/App.app build/Payload/ && mkdir -p build/Payload/Payload && cp -r build/Build/Products/Release-iphoneos/App.app build/Payload/Payload/ && cd build && zip -r App.ipa Payload && ls -la App.ipa
+          ls ios/
+          cd ios && xcodebuild -workspace App.xcworkspace -scheme App -configuration Release -destination 'generic/platform=iOS' -derivedDataPath build COMPILER_INDEX_STORE_NO=NO CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO 2>&1 | tee build.log
+          ls -la build/Build/Products/Release-iphoneos/ 2>/dev/null || echo "No Release-iphoneos build"
+      - name: Create IPA
+        run: |
+          mkdir -p build/Payload
+          cp -r build/Build/Products/Release-iphoneos/App.app build/Payload/
+          cd build && zip -r App.ipa Payload && ls -la App.ipa
       - uses: actions/upload-artifact@v4
         with:
           name: App-ipa
           path: ios/build/App.ipa
-          retention-days: 7
-      - name: Upload to App Store Connect
-        env:
-          APPSTORECONNECT_API_KEY_FILE: ${{ secrets.APPSTORECONNECT_API_KEY_FILE }}
-          APPSTORECONNECT_ISSUER_ID: ${{ secrets.APPSTORECONNECT_ISSUER_ID }}
-          APPSTORECONNECT_KEY_ID: ${{ secrets.APPSTORECONNECT_KEY_ID }}
-          APPSTORECONNECT_TEAM_ID: ${{ secrets.APPSTORECONNECT_TEAM_ID }}
-        run: |
-          mkdir -p ~/private_keys/developer_portal
-          echo -n "$APPSTORECONNECT_API_KEY_FILE" | base64 --decode > ~/private_keys/developer_portal/AuthKey_$APPSTORECONNECT_KEY_ID.p8
-          xcrun altool --upload-app -f ios/build/App.ipa -t iosOS -u "" -p "@keychain:APPSTORECONNECT_TEAM_ID" --force 2>&1 || echo "Upload skipped - App Store Connect credentials not configured"
+          retention-days: 1
