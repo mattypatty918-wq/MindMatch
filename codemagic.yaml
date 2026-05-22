@@ -1,4 +1,4 @@
-# Codemagic CI/CD for memory-match-game
+# Codemagic CI/CD for MindMatch
 workflows:
   ios-workflow:
     name: iOS
@@ -6,18 +6,18 @@ workflows:
     environment:
       vars:
         XCODE_VERSION: "15.0"
-        APP_NAME: "memory-match-game"
+        APP_NAME: "MindMatch"
     triggering:
       branch_patterns:
         - pattern: master
           include: true
     scripts:
-      - git clone https://github.com/mattypatty918-wq/memory-match-game.git --depth 1
-      - cd memory-match-game && git submodule update --init --recursive
-      - cd memory-match-game && xcode-project fetch-dependencies --use-cache
-      - cd memory-match-game && xcode-project build --workspace ios/App.xcworkspace --scheme App --configuration Release
+      - git clone https://github.com/mattypatty918-wq/mind-match.git --depth 1
+      - cd mind-match && git submodule update --init --recursive
+      - cd mind-match && xcode-project fetch-dependencies --use-cache
+      - cd mind-match && xcode-project build --workspace ios/App.xcworkspace --scheme App --configuration Release
     artifacts:
-      - memory-match-game/ios/App/App.xcarchive
+      - mind-match/ios/App/App.xcarchive
     publishing:
       app_store_connect:
         api_key: Whitefoxes
