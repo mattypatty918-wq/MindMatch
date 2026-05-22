@@ -1,8 +1,8 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.mattypattysapps.flipmatch',
-  appName: 'Flip Match',
+  appId: "com.mattypattysapps.mindmatch",
+  appName: "MindMatch",
   webDir: 'dist',
   server: { androidScheme: 'https' },
   plugins: {
